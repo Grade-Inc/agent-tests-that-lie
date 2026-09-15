@@ -5,6 +5,8 @@ def line_total(unit_price_cents: int, quantity: int) -> int:
     """The cost of `quantity` of one item."""
     if quantity < 0:
         raise ValueError("quantity cannot be negative")
+    if unit_price_cents < 0:
+        raise ValueError("a unit price cannot be negative")
     return unit_price_cents * quantity
 
 
