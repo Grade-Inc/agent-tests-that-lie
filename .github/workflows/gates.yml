@@ -1,0 +1,35 @@
+name: gates
+on:
+  pull_request:
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  corund:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # load-bearing: C1 needs the merge-base
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Install the package AND its test dependencies. Corund re-runs this repo's own tests, so
+      # pytest has to be importable before the Action starts. No `|| true` and no fallback: if the
+      # install fails, this step fails loudly. A step that can silently not-install is the exact
+      # shape this repository exists to demonstrate.
+      - run: pip install -e ".[dev]"
+      - run: python -m pytest --version     # proves the runner exists before Corund needs it
+
+      - uses: Grade-Inc/corund-action@v0
+        with:
+          test-command: python -m pytest -q
+          test-globs: tests/**/test_*.py
+          skip-allowlist: tests/loud_skips.txt
+          block: ""                  # observe: every check concludes neutral; the verdict is in the title and the receipt

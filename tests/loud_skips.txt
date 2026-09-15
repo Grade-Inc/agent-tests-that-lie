@@ -1,0 +1,6 @@
+# Loud-skip allowlist. Corund's C2 skip-audit reads this file FROM THE BASE TREE, so a pull
+# request cannot allowlist its own skip.
+#
+# Format, one per line:   <path>::<test>  <reason>
+#
+# This repo keeps it empty on purpose: every skip here is meant to be caught.
