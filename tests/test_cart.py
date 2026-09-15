@@ -18,6 +18,10 @@ def test_apply_discount_takes_the_percentage_off_the_whole_total():
     assert apply_discount(1999, 10) == 1800
 
 
+def test_apply_discount_still_returns_an_integer():
+    assert isinstance(apply_discount(1999, 10), int)
+
+
 def test_apply_discount_handles_the_edges():
     assert apply_discount(1999, 0) == 1999
     assert apply_discount(1999, 100) == 0

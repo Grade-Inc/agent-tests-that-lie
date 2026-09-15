@@ -8,6 +8,11 @@ def line_total(unit_price_cents: int, quantity: int) -> int:
     return unit_price_cents * quantity
 
 
+def _percentage_of(amount_cents: int, percent: int) -> int:
+    """`percent` percent of `amount_cents`, floored."""
+    return (amount_cents * percent) // 100
+
+
 def apply_discount(total_cents: int, percent_off: int) -> int:
     """Take `percent_off` percent off `total_cents`.
 
@@ -16,4 +21,4 @@ def apply_discount(total_cents: int, percent_off: int) -> int:
     """
     if not 0 <= percent_off <= 100:
         raise ValueError("percent_off must be between 0 and 100")
-    return total_cents - (total_cents * percent_off) // 100
+    return total_cents - _percentage_of(total_cents, percent_off)
