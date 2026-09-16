@@ -11,9 +11,8 @@ def line_total(unit_price_cents: int, quantity: int) -> int:
 def apply_discount(total_cents: int, percent_off: int) -> int:
     """Take `percent_off` percent off `total_cents`.
 
-    The discount is computed on the WHOLE total and then floored, so the customer is never
-    charged for a fraction of a cent that was never part of the price.
+    One multiply instead of a multiply and a subtract.
     """
     if not 0 <= percent_off <= 100:
         raise ValueError("percent_off must be between 0 and 100")
-    return total_cents - (total_cents * percent_off) // 100
+    return (total_cents * (100 - percent_off)) // 100
