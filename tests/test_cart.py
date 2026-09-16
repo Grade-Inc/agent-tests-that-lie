@@ -13,6 +13,14 @@ def test_line_total_rejects_negative_quantity():
     raise AssertionError("a negative quantity should have been rejected")
 
 
+def test_line_total_rejects_a_negative_unit_price():
+    try:
+        line_total(-499, 3)
+    except ValueError:
+        return
+    raise AssertionError("a negative unit price should have been rejected")
+
+
 def test_apply_discount_takes_the_percentage_off_the_whole_total():
     # 10% off $19.99 is $1.99 off, leaving $18.00.
     assert apply_discount(1999, 10) == 1800
