@@ -2,19 +2,33 @@
 
 This repo is bait for weak tests.
 
-Every pull request here passes CI. One of them ships a real bug and silences the one test that
-would have caught it. The others are honest, and one of those is honest but proves nothing. CI
-cannot tell them apart. That is the whole problem.
+Four pull requests. All four pass CI. One ships a real bug and silences the one test that covers
+it. One is a real fix. One is a refactor whose test would pass with or without it. One changes no
+behaviour at all. CI reports the same thing for all four: green.
 
-[Corund](https://corund.dev) runs on each of them and posts a receipt.
+[Corund](https://corund.dev) runs red-on-revert on each of them and posts a receipt.
+
+## Red-on-revert
+
+Corund reverts the pull request's non-test diff onto the base, runs the pull request's own new and
+changed tests, and requires at least one of them to execute and **fail by assertion** on that
+reverted tree. Then it restores the diff and requires green. Both runs go on the receipt, with
+their commands and exit codes.
+
+A test that stays green with the change reverted was never attached to the change.
+
+Corund never accuses. Where it cannot prove, it withholds and names the reason.
 
 | pull request | what it does | CI | Corund |
 |---|---|---|---|
-| **perf: one multiply instead of a multiply and a subtract** | breaks the discount by a cent, marks the covering test `skip(reason="flaky on CI")` | green | **GAMED-SUSPECT** |
-| fix: a negative unit price is rejected | a real fix, with a test that fails without it | green | PROVEN |
-| refactor: extract the percentage calculation | behaviour-preserving, with a test that passes either way | green | UNPROVEN, green on revert |
+| [#1 fix: a negative unit price is rejected](../../pull/1) | a real fix, with a test that fails without it | green | **PROVEN** |
+| [#2 refactor: extract the percentage calculation](../../pull/2) | behaviour-preserving; the test passes either way | green | **UNPROVEN-green-on-revert** |
+| [#3 perf: one multiply instead of a multiply and a subtract](../../pull/3) | breaks the discount by a cent, marks the covering test `skip(reason="flaky on CI")` | green | **UNPROVEN-collection** |
+| [#4 refactor: name the discount amount before subtracting it](../../pull/4) | no behaviour change, no test change | green | **NOT-RUN** |
 
-## Start with the first one
+Four pull requests, four different things Corund can say. Exactly one of them is `PROVEN`.
+
+## Start with #3
 
 Open it and read the receipt on the pull request.
 
@@ -31,31 +45,46 @@ apply_discount( 499, 15)    was  425    is now  424
 ```
 
 Every discounted order is a cent light. The edge tests still pass, because 0% and 100% round the
-same either way. The one test that asserts a real discount would have failed, and that test is
+same either way. The one test that asserts a real discount would have failed — and that test is
 skipped in the same commit, with the reason "flaky on CI".
 
 CI is green. Three passed, one skipped.
 
-## What Corund does about it
+Corund does not call this sabotage. It cannot see intent, so it does not guess at it. What it does
+is refuse to call the pull request proven, and name the test that made proof impossible:
 
-It reverts the pull request's non-test diff onto the base, runs the pull request's own new and
-changed tests, and requires at least one of them to fail. A test that stays green with the change
-reverted was never attached to the change. Then it restores the diff and requires green. Both runs
-go on the receipt with their commands and exit codes.
+```
+tests/test_cart.py::test_apply_discount_takes_the_percentage_off_the_whole_total:
+    skipped WITH the change — never executed, not a witness
 
-Alongside that it audits the diff for a silent skip, xfail, dead gate, constant-true assertion or
-narrowed discovery, against a loud-skip allowlist read from the base tree, so a pull request cannot
-allowlist its own skip.
+UNPROVEN-collection: no test failed by assertion on the reverted tree;
+1 test(s) carry this reason:
+    tests/test_cart.py::test_apply_discount_takes_the_percentage_off_the_whole_total
+```
 
-On the first pull request the skip means the test C1 needed never ran, and the diff is what
-silenced it. That is GAMED-SUSPECT.
+That is the receipt, verbatim. Green CI says the pull request is fine. The receipt says the only
+test that could have judged it never ran. A reviewer reads one line and knows where to look.
 
-No model judgment decides any of it. Every check is a deterministic comparison you can re-run.
+## The other three
+
+**#1 is the control.** A real fix with a test that genuinely fails without it. On the reverted tree
+that test fails by assertion; with the change restored it passes. `PROVEN`, and the receipt names
+the witness. Without this one you could not tell a working check from a check that is simply always
+unhappy.
+
+**#2 is the honest near-miss.** The refactor preserves behaviour, so its test passes on both trees.
+That is not a bug and nobody did anything wrong — but the test proves nothing about this diff, and
+the receipt says so: `UNPROVEN-green-on-revert`. This is the most common verdict on real
+repositories, and it is a statement about the test, not an accusation about the author.
+
+**#4 changes no tests at all**, so there is nothing to compare and Corund says `NOT-RUN` rather
+than inventing a verdict. A check that reports a result it did not compute is the failure mode this
+whole repository is about.
 
 ## Run it on your own history first
 
-Before letting anything block, replay the checks over your last 50 merged pull requests. It posts
-nothing and prints, per rule, what it would have flagged.
+Before letting anything block, replay the check over your last 50 merged pull requests. It posts
+nothing, and prints what it would have said.
 
 ```
 python3 corund_cli.py replay --repo-dir . --branch main --last 50 \
@@ -64,27 +93,33 @@ python3 corund_cli.py replay --repo-dir . --branch main --last 50 \
 
 ## Use it
 
-Five lines of workflow YAML, in a job that checks out with `fetch-depth: 0`. The Action is MIT and
+A few lines of workflow YAML, in a job that checks out with `fetch-depth: 0`. The Action is MIT and
 runs on your own runners, no signup. See [`.github/workflows/gates.yml`](.github/workflows/gates.yml)
 in this repo, which is the whole configuration.
 
 ```yaml
-- uses: Grade-Inc/corund-action@v0
+- uses: Grade-Inc/corund-action@v0.1.3
   with:
+    runner: pytest
     test-command: python -m pytest -q
     test-globs: tests/**/test_*.py
-    skip-allowlist: tests/loud_skips.txt
     block: ""        # observe: nothing blocks; the verdict is in the check title and the receipt
 ```
 
-Every check concludes neutral by default. Blocking is a per-rule opt-in. Use this on your private
-repos if you want that GAMED-SUSPECT verdict to block the merge.
+Every check-run conclusion is neutral by default. Blocking is opt-in: set `block: c1` when you want
+a failed check to stop the merge.
 
 ## What it does not do
 
 Corund proves a test ran and fails on revert. It does not verify the test asserts the *correct*
 value, so a pull request whose code and test are wrong in agreement is not decided by anything
-here. That limit is printed on every receipt rather than hidden.
+here.
+
+It checks that the tests a pull request adds or changes catch that pull request's change. It does
+not flag a pull request that only turns off an existing test — on #3 above, the receipt names the
+skipped test because that test was the one it needed, not because it audits skips.
+
+Both limits are printed on every receipt rather than hidden.
 
 ---
 
