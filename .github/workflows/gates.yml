@@ -12,6 +12,8 @@ jobs:
   corund:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      PYTHONPATH: src      # import shop from THIS tree, so C1's revert actually bites
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,7 +26,7 @@ jobs:
       # pytest has to be importable before the Action starts. No `|| true` and no fallback: if the
       # install fails, this step fails loudly. A step that can silently not-install is the exact
       # shape this repository exists to demonstrate.
-      - run: pip install -e ".[dev]"
+      - run: pip install pytest        # test deps ONLY: an installed copy is not reverted
       - run: python -m pytest --version     # proves the runner exists before Corund needs it
 
       - uses: Grade-Inc/corund-action@v0.1.3
