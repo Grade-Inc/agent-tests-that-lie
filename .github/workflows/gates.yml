@@ -27,7 +27,7 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: python -m pytest --version     # proves the runner exists before Corund needs it
 
-      - uses: Grade-Inc/corund-action@v0
+      - uses: Grade-Inc/corund-action@v0.1.3
         with:
           test-command: python -m pytest -q
           test-globs: tests/**/test_*.py
